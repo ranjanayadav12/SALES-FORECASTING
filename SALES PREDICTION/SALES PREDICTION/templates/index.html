@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Predict Sales - Sales Forecasting{% endblock %}
+
+{% block content %}
+<div class="grid-2">
+    <!-- Form Side -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h2 class="text-gradient" style="margin: 0;"><i class="fa-solid fa-wand-sparkles mr-2"></i> Predict Future Sales</h2>
+            {% if session.get('username') %}
+                <span class="badge badge-primary" style="padding: 0.5rem 1rem; border-radius: 2rem;"><i class="fa-solid fa-user mr-2"></i> {{ session.get('username') }}</span>
+            {% endif %}
+        </div>
+        <p class="text-muted mb-4">Enter historical data and variables to generate an AI-powered forecast for the upcoming period.</p>
+        
+        <form method="POST" action="{{ url_for('predict') }}">
+            <div class="form-group">
+                <label class="form-label" for="rate">Growth Rate / Confidence Index (%)</label>
+                <div style="position: relative;">
+                    <i class="fa-solid fa-arrow-trend-up" style="position: absolute; left: 1rem; top: 1rem; color: var(--text-muted);"></i>
+                    <input type="number" step="0.01" id="rate" name="rate" class="form-control" style="padding-left: 2.75rem;" placeholder="e.g. 15.5" required>
+                </div>
+            </div>
+            
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label" for="sales_first_month">Sales (Month 1)</label>
+                    <div style="position: relative;">
+                        <i class="fa-solid fa-chart-bar" style="position: absolute; left: 1rem; top: 1rem; color: var(--text-muted);"></i>
+                        <input type="number" step="0.01" id="sales_first_month" name="sales_first_month" class="form-control" style="padding-left: 2.75rem;" placeholder="e.g. 50" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="sales_second_month">Sales (Month 2)</label>
+                    <div style="position: relative;">
+                        <i class="fa-solid fa-chart-line" style="position: absolute; left: 1rem; top: 1rem; color: var(--text-muted);"></i>
+                        <input type="number" step="0.01" id="sales_second_month" name="sales_second_month" class="form-control" style="padding-left: 2.75rem;" placeholder="e.g. 65" required>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label" for="sales_unit">Data Unit</label>
+                    <div style="position: relative;">
+                        <i class="fa-solid fa-scale-balanced" style="position: absolute; left: 1rem; top: 1rem; color: var(--text-muted);"></i>
+                        <select id="sales_unit" name="sales_unit" class="form-control" style="padding-left: 2.75rem;">
+                            <option value="lakhs" selected>Lakhs</option>
+                            <option value="crores">Crores</option>
+                            <option value="raw">Raw ₹</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="cost">Estimated Cost (Optional)</label>
+                    <div style="position: relative;">
+                        <i class="fa-solid fa-money-bill-transfer" style="position: absolute; left: 1rem; top: 1rem; color: var(--text-muted);"></i>
+                        <input type="number" step="0.01" id="cost" name="cost" class="form-control" style="padding-left: 2.75rem;" placeholder="e.g. 45">
+                    </div>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-block">
+                Generate Forecast <i class="fa-solid fa-microchip ml-2"></i>
+            </button>
+        </form>
+    </div>
+
+    <!-- Results Side -->
+    <div class="glass-card animate-fade-in delay-1" style="display: flex; flex-direction: column;">
+        <h2 class="mb-4">Forecast Results</h2>
+        
+        {% if prediction_text %}
+            <div style="text-align: center; margin-top: 2rem; margin-bottom: 2rem;">
+                <div style="width: 80px; height: 80px; border-radius: 50%; background: var(--accent-gradient); display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 1.5rem; box-shadow: 0 0 30px var(--accent-glow);">
+                    <i class="fa-solid fa-coins text-white"></i>
+                </div>
+                <h3 class="text-muted" style="font-weight: 400; font-size: 1.1rem; margin-bottom: 0.5rem;">Base AI Prediction</h3>
+                <div class="text-gradient" style="font-size: 2.5rem; font-weight: 700; letter-spacing: -1px;">
+                    {{ prediction_text.replace("Predicted Sales: ", "") }}
+                </div>
+                
+                {% if profit_loss_val is not none %}
+                    <div class="profit-loss-badge {% if profit_loss_val|float >= 0 %}profit{% else %}loss{% endif %}">
+                        <span class="profit-loss-text {% if profit_loss_val|float >= 0 %}profit{% else %}loss{% endif %}">
+                            {% if profit_loss_val|float >= 0 %}
+                                <i class="fa-solid fa-arrow-up mr-1"></i> Est. Profit: ₹{{ "%.2f"|format(profit_loss_val) }} L
+                            {% else %}
+                                <i class="fa-solid fa-arrow-down mr-1"></i> Est. Loss: ₹{{ "%.2f"|format(profit_loss_val|abs) }} L
+                            {% endif %}
+                        </span>
+                    </div>
+                {% endif %}
+                
+                {% if prediction_method %}
+                    <div style="font-size: 0.85rem; color: var(--primary); margin-top: 1rem; font-weight: 500;">
+                        <i class="fa-solid fa-microchip mr-1"></i> Mode: {{ prediction_method }}
+                    </div>
+                {% endif %}
+                {% if prediction_generated_at %}
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">
+                        Generated: {{ prediction_generated_at }}
+                    </div>
+                {% endif %}
+            </div>
+            
+            {% if warning_message %}
+                <div class="alert alert-warning mt-3">
+                    <i class="fa-solid fa-triangle-exclamation mr-2"></i> {{ warning_message }}
+                </div>
+            {% endif %}
+
+            {% if seasonal_context and seasonal_context.festive_adjusted_display %}
+                <div style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: var(--radius-md); padding: 1.5rem; margin-top: auto;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                        <h4 style="margin: 0; color: var(--primary);"><i class="fa-solid fa-calendar-star mr-2"></i> Seasonal Intelligence</h4>
+                        <span style="background: var(--accent-gradient); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">ACTIVE</span>
+                    </div>
+                    
+                    <div class="grid-2" style="gap: 1rem; margin-bottom: 1rem;">
+                        <div>
+                            <div class="text-muted" style="font-size: 0.85rem;">Current Season</div>
+                            <div style="font-weight: 500;">{{ seasonal_context.season }}</div>
+                        </div>
+                        <div>
+                            <div class="text-muted" style="font-size: 0.85rem;">Upcoming Event</div>
+                            <div style="font-weight: 500;">{{ seasonal_context.festival_name }}</div>
+                        </div>
+                    </div>
+                    
+                    <div style="padding-top: 1rem; border-top: 1px solid var(--border-glass);">
+                        <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 0.25rem;">Context-Adjusted Forecast</div>
+                        <div style="font-size: 1.5rem; font-weight: 600; color: var(--text-main);">
+                            {{ seasonal_context.festive_adjusted_display }}
+                            <span style="font-size: 0.9rem; font-weight: 400; color: var(--success);" title="Impact Factor">
+                                ({{ "%.1f"|format((seasonal_context.festive_uplift_factor - 1) * 100) }}%)
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+        {% elif error %}
+            <div class="alert alert-danger" style="margin-top: auto; margin-bottom: auto;">
+                <i class="fa-solid fa-circle-exclamation mr-2"></i> {{ error }}
+            </div>
+        {% else %}
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); opacity: 0.6;">
+                <i class="fa-solid fa-robot" style="font-size: 4rem; margin-bottom: 1.5rem;"></i>
+                <p>Awaiting data input to generate forecast...</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Scenario Planner - Sales Forecasting{% endblock %}
+
+{% block content %}
+<div class="glass-card animate-fade-in mb-4">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem;">
+        <div>
+            <h2 class="text-gradient" style="margin-bottom: 0.5rem;"><i class="fa-solid fa-code-branch mr-2"></i> Scenario Planning</h2>
+            <p class="text-muted">Simulate complex market events (inflation, competitor actions, supply shocks) by applying modifier templates to your baseline forecast.</p>
+        </div>
+        <div>
+            <span style="background: rgba(139, 92, 246, 0.2); color: var(--primary); padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.9rem; font-weight: 500;">
+                <i class="fa-solid fa-flask mr-1"></i> Experimental AI
+            </span>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('run_scenario') }}" class="grid-2">
+        <!-- Baseline Setup -->
+        <div>
+            <h3 class="mb-3" style="font-size: 1.1rem; color: var(--text-muted); border-bottom: 1px solid var(--border-glass); padding-bottom: 0.5rem;">Baseline Variables</h3>
+            
+            <div class="form-group mb-4">
+                <label class="form-label" for="base_sales">Average Baseline Sales</label>
+                <div style="position: relative;">
+                    <i class="fa-solid fa-chart-pie" style="position: absolute; left: 1rem; top: 1rem; color: var(--text-muted);"></i>
+                    <input type="number" step="0.01" id="base_sales" name="base_sales" class="form-control" style="padding-left: 2.75rem;" value="{{ result.base_sales if result else '' }}" placeholder="10000" required>
+                </div>
+            </div>
+            
+            <div class="form-group mb-4">
+                <label class="form-label" for="base_rate">Baseline Growth Rate (%)</label>
+                <div style="position: relative;">
+                    <i class="fa-solid fa-arrow-trend-up" style="position: absolute; left: 1rem; top: 1rem; color: var(--text-muted);"></i>
+                    <input type="number" step="0.01" id="base_rate" name="base_rate" class="form-control" style="padding-left: 2.75rem;" value="{{ result.base_rate if result else '' }}" placeholder="10" required>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scenario Selection -->
+        <div>
+            <h3 class="mb-3" style="font-size: 1.1rem; color: var(--text-muted); border-bottom: 1px solid var(--border-glass); padding-bottom: 0.5rem;">Market Event Template</h3>
+            
+            <div class="form-group mb-4">
+                <label class="form-label" for="scenario_type">Predefined Scenario</label>
+                <div style="position: relative;">
+                    <i class="fa-solid fa-bolt" style="position: absolute; left: 1rem; top: 1rem; color: var(--primary);"></i>
+                    <select id="scenario_type" name="scenario_type" class="form-control" style="padding-left: 2.75rem;" required>
+                        <option value="high_inflation" {% if scenario_type == 'high_inflation' %}selected{% endif %}>High Inflation Shock</option>
+                        <option value="competitor_exit" {% if scenario_type == 'competitor_exit' %}selected{% endif %}>Major Competitor Exits Market</option>
+                        <option value="supply_chain_disruption" {% if scenario_type == 'supply_chain_disruption' %}selected{% endif %}>Supply Chain Disruption</option>
+                        <option value="viral_marketing" {% if scenario_type == 'viral_marketing' %}selected{% endif %}>Viral Marketing Success</option>
+                        <option value="recession_mild" {% if scenario_type == 'recession_mild' %}selected{% endif %}>Mild Economic Recession</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group mb-4">
+                <label class="form-label" for="severity">Event Severity</label>
+                <div style="position: relative;">
+                    <i class="fa-solid fa-gauge-high" style="position: absolute; left: 1rem; top: 1rem; color: var(--danger);"></i>
+                    <select id="severity" name="severity" class="form-control" style="padding-left: 2.75rem;" required>
+                        <option value="low" {% if severity == 'low' %}selected{% endif %}>Low Impact</option>
+                        <option value="medium" {% if severity == 'medium' %}selected{% endif %}>Medium Impact</option>
+                        <option value="high" {% if severity == 'high' %}selected{% endif %}>High / Extreme Impact</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">
+                Simulate Scenario <i class="fa-solid fa-play ml-2"></i>
+            </button>
+        </div>
+    </form>
+</div>
+
+{% if result %}
+<div class="glass-card animate-fade-in delay-1">
+    <h3 class="mb-4">Simulation Results: <span style="color: var(--primary);">{{ scenario_type|replace('_', ' ')|title }}</span></h3>
+    
+    <div class="grid-3 mb-4">
+        <!-- Baseline Metrics -->
+        <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 1.5rem; text-align: center;">
+            <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 0.5rem;">Baseline Forecast</div>
+            <div style="font-size: 1.5rem; font-weight: 500; color: var(--text-muted);">
+                {{ "{:,.2f}".format(result.baseline_prediction) }}
+            </div>
+            <div class="text-muted mt-2" style="font-size: 0.8rem;">Rate: {{ "{:.1f}".format(result.base_rate) }}%</div>
+        </div>
+        
+        <!-- Scenario Metrics -->
+        <div style="background: rgba(139, 92, 246, 0.1); border: 2px solid var(--primary); border-radius: var(--radius-md); padding: 1.5rem; text-align: center; position: relative; overflow: hidden; box-shadow: 0 0 20px rgba(139, 92, 246, 0.1);">
+            <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 0.5rem; color: var(--primary);">Scenario Adjusted Forecast</div>
+            <div style="font-size: 2rem; font-weight: 700; color: var(--text-main);">
+                {{ "{:,.2f}".format(result.scenario_prediction) }}
+            </div>
+            
+            {% set pct_change = ((result.scenario_prediction - result.baseline_prediction) / result.baseline_prediction) * 100 %}
+            <div style="margin-top: 0.5rem; font-weight: 600; color: {% if pct_change > 0 %}var(--success){% else %}var(--danger){% endif %};">
+                <i class="fa-solid {% if pct_change > 0 %}fa-arrow-up{% else %}fa-arrow-down{% endif %} mr-1"></i>
+                {{ "{:.1f}".format(pct_change|abs) }}% Impact
+            </div>
+        </div>
+        
+        <!-- Modifier Breakdown -->
+        <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 1.5rem;">
+            <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 1rem;"><i class="fa-solid fa-sliders mr-2"></i> Applied Modifiers</div>
+            
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
+                <span style="color: var(--text-muted);">Rate Multiplier:</span>
+                <span style="font-weight: 600;">x{{ "{:.2f}".format(result.modifiers.rate_modifier) }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
+                <span style="color: var(--text-muted);">Volume Multiplier:</span>
+                <span style="font-weight: 600;">x{{ "{:.2f}".format(result.modifiers.volume_modifier) }}</span>
+            </div>
+            
+            <div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border-glass);">
+                <span class="text-muted" style="font-size: 0.8rem;">Severity Level:</span>
+                <span style="float: right; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; 
+                    color: {% if severity == 'high' %}var(--danger){% elif severity == 'medium' %}var(--warning){% else %}var(--success){% endif %};">
+                    {{ severity }}
+                </span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="alert alert-info mt-4" style="background: rgba(14, 165, 233, 0.1); border-color: rgba(14, 165, 233, 0.3); color: #bae6fd;">
+        <i class="fa-solid fa-circle-info mr-2"></i> <strong>Simulation Note:</strong> This scenario applies macroeconomic multi-factor scaling to the base AI prediction model to simulate complex real-world events.
+    </div>
+</div>
+{% endif %}
+{% endblock %}

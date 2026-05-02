@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Forecast - Sales Forecasting{% endblock %}
+
+{% block content %}
+<div class="glass-card animate-fade-in mb-4">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem;">
+        <div>
+            <h2 class="text-gradient" style="margin-bottom: 0.5rem;"><i class="fa-solid fa-chart-area mr-2"></i> Time-Series Forecast</h2>
+            <p class="text-muted">Upload a continuous historical timeline (e.g., month-by-month sales) to automatically forecast the next period.</p>
+        </div>
+        <div>
+            <a href="{{ url_for('upload_page') }}" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+                <i class="fa-solid fa-arrow-left mr-1"></i> Back to Batch Processing
+            </a>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('upload_forecast') }}" enctype="multipart/form-data">
+        <div class="form-group mb-4" style="background: rgba(0,0,0,0.2); border: 2px dashed rgba(255,255,255,0.2); border-radius: var(--radius-lg); padding: 3rem 2rem; text-align: center; transition: all 0.3s ease;" id="ts-drop-zone">
+            <i class="fa-solid fa-file-csv" style="font-size: 3rem; color: var(--secondary); margin-bottom: 1rem;"></i>
+            <h4 style="margin-bottom: 0.5rem;">Upload Timeline Dataset</h4>
+            <p class="text-muted" style="font-size: 0.9rem; margin-bottom: 1.5rem;">File must contain a chronological "Sales" column</p>
+            <input type="file" id="ts-file" name="file" accept=".csv, .xlsx, .xls" style="display: none;" required>
+            <button type="button" class="btn btn-outline" onclick="document.getElementById('ts-file').click()">Select File</button>
+            <div id="ts-file-name" class="mt-2 text-primary" style="font-weight: 500;"></div>
+        </div>
+
+        <div class="grid-2 mb-4">
+            <div class="form-group">
+                <label class="form-label" for="rate">Assumed Growth Rate/Index (%)</label>
+                <div style="position: relative;">
+                    <i class="fa-solid fa-arrow-trend-up" style="position: absolute; left: 1rem; top: 1rem; color: var(--text-muted);"></i>
+                    <input type="number" step="0.01" id="rate" name="rate" class="form-control" style="padding-left: 2.75rem;" value="10" required>
+                </div>
+                <small class="text-muted mt-1" style="display: block;">Environmental context to guide the model.</small>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="sales_unit">Data Unit Interpretation</label>
+                <select id="sales_unit" name="sales_unit" class="form-control">
+                    <option value="lakhs" selected>Lakhs (100,000s)</option>
+                    <option value="crores">Crores (10,000,000s)</option>
+                    <option value="raw">Raw Amount</option>
+                </select>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="ts-submit-btn" disabled>Analyze Timeline <i class="fa-solid fa-wand-magic-sparkles ml-2"></i></button>
+    </form>
+    
+    {% if error %}
+    <div class="alert alert-danger mt-4">
+        <i class="fa-solid fa-circle-xmark mr-2"></i> {{ error }}
+    </div>
+    {% endif %}
+</div>
+
+{% if success %}
+<div class="glass-card animate-fade-in delay-1">
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem;">
+        <div>
+            <h3 class="mb-1">Forecast Complete for Next Period</h3>
+            <p class="text-muted" style="font-size: 0.9rem;">Analyzed {{ data_points }} historical data points from <code>{{ filename }}</code></p>
+        </div>
+        <div style="text-align: right;">
+            <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 0.25rem;">AI Recommendation</div>
+            <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">
+                {% if sales_unit == 'lakhs' %}
+                    {{ (festive_adjusted_forecast / 100000)|round(2) }} Lakhs
+                {% elif sales_unit == 'crores' %}
+                    {{ (festive_adjusted_forecast / 10000000)|round(2) }} Crores
+                {% else %}
+                    Rs {{ festive_adjusted_forecast|round(2) }}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Intelligence Ribbon -->
+    <div style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: var(--radius-md); padding: 1.5rem; margin-bottom: 2rem; display: flex; align-items: center; gap: 1.5rem;">
+        <div style="font-size: 2.5rem; color: var(--primary);">
+            <i class="fa-solid fa-brain"></i>
+        </div>
+        <div style="flex: 1;">
+            <h4 style="margin-bottom: 0.5rem; color: var(--text-main);">AI Insights</h4>
+            <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem;">
+                {% for insight in insights[:2] %}
+                <li style="display: flex; align-items: flex-start; gap: 0.5rem; color: var(--text-muted); font-size: 0.95rem;">
+                    <i class="fa-solid fa-caret-right" style="color: var(--primary); margin-top: 4px;"></i>
+                    <span>{{ insight }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div style="text-align: right; border-left: 1px solid var(--border-glass); padding-left: 1.5rem;">
+            <div class="text-muted" style="font-size: 0.8rem; margin-bottom: 0.25rem;">Confidence Level</div>
+            <div style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; 
+                {% if confidence_label == 'High' %}background: rgba(16, 185, 129, 0.2); color: var(--success);
+                {% elif confidence_label == 'Medium' %}background: rgba(245, 158, 11, 0.2); color: var(--warning);
+                {% else %}background: rgba(239, 68, 68, 0.2); color: var(--danger);{% endif %}">
+                {{ confidence_label }} ({{ (confidence * 100)|round(0)|int }}%)
+            </div>
+        </div>
+    </div>
+
+    <div class="grid-3 mb-4">
+        <!-- Trend Metrics -->
+        <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 1.25rem;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                <span class="text-muted"><i class="fa-solid fa-arrow-trend-up mr-2"></i> Recent Trend</span>
+                <span style="padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; background: rgba(255,255,255,0.1);">{{ trend_strength|title }}</span>
+            </div>
+            <div style="display: flex; align-items: baseline; gap: 0.5rem;">
+                <div style="font-size: 1.25rem; font-weight: 600;">{{ trend_direction|title }}</div>
+                {% if comparison_metrics and comparison_metrics.change_vs_last_pct %}
+                    {% if comparison_metrics.change_vs_last_pct > 0 %}
+                        <span class="text-success"><i class="fa-solid fa-caret-up"></i> {{ comparison_metrics.change_vs_last_pct|abs|round(1) }}% vs last month</span>
+                    {% else %}
+                        <span class="text-danger"><i class="fa-solid fa-caret-down"></i> {{ comparison_metrics.change_vs_last_pct|abs|round(1) }}% vs last month</span>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Seasonality Metrics -->
+        <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 1.25rem;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                <span class="text-muted"><i class="fa-solid fa-calendar-days mr-2"></i> Seasonality</span>
+                {% if has_seasonality %}
+                    <span style="padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; background: rgba(16, 185, 129, 0.2); color: var(--success);">Detected</span>
+                {% else %}
+                    <span style="padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; background: rgba(255, 255, 255, 0.1);">None</span>
+                {% endif %}
+            </div>
+            <div style="font-size: 1.25rem; font-weight: 600;">
+                {% if has_seasonality %}
+                    {{ seasonality_period }} Period Cycle
+                {% else %}
+                    Random Walk
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- P&L if cost exists -->
+        <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 1.25rem;">
+            <div style="display: flex; align-items: center; margin-bottom: 1rem;">
+                <span class="text-muted"><i class="fa-solid fa-wallet mr-2"></i> Projected P&L</span>
+            </div>
+            {% if comparison_metrics and comparison_metrics.projected_profit_loss is not none %}
+                <div style="font-size: 1.25rem; font-weight: 600; color: {% if comparison_metrics.movement == 'profit' %}var(--success){% else %}var(--danger){% endif %};">
+                    {% if sales_unit == 'lakhs' %}
+                        {{ (comparison_metrics.projected_profit_loss / 100000)|round(2) }} Lakhs
+                    {% elif sales_unit == 'crores' %}
+                        {{ (comparison_metrics.projected_profit_loss / 10000000)|round(2) }} Crores
+                    {% else %}
+                        {{ comparison_metrics.projected_profit_loss|round(2) }}
+                    {% endif %}
+                </div>
+            {% else %}
+                <div style="font-size: 1.25rem; font-weight: 600; color: var(--text-muted); opacity: 0.5;">
+                    No Cost Data
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const tsFileInput = document.getElementById('ts-file');
+    const tsDropZone = document.getElementById('ts-drop-zone');
+    const tsSubmitBtn = document.getElementById('ts-submit-btn');
+    const tsFileNameDisplay = document.getElementById('ts-file-name');
+
+    const handleTsFile = (file) => {
+        if (!file) {
+            tsSubmitBtn.disabled = true;
+            return;
+        }
+        tsFileNameDisplay.innerHTML = `<i class="fa-solid fa-file-csv mr-2"></i> Selected: ${file.name}`;
+        tsDropZone.style.border = '2px solid var(--secondary)';
+        tsDropZone.style.background = 'rgba(236, 72, 153, 0.1)';
+        tsSubmitBtn.disabled = false;
+    };
+
+    tsFileInput.addEventListener('change', (e) => {
+        handleTsFile(e.target.files[0]);
+    });
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        tsDropZone.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        tsDropZone.addEventListener(eventName, () => {
+            tsDropZone.style.border = '2px dashed var(--secondary)';
+            tsDropZone.style.background = 'rgba(236, 72, 153, 0.15)';
+        }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        tsDropZone.addEventListener(eventName, () => {
+            if(!tsFileInput.files.length) {
+                tsDropZone.style.border = '2px dashed rgba(255,255,255,0.2)';
+                tsDropZone.style.background = 'rgba(0,0,0,0.2)';
+            }
+        }, false);
+    });
+
+    tsDropZone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if(files.length > 0) {
+            tsFileInput.files = files; // Assign files to input
+            handleTsFile(files[0]);
+        }
+    }, false);
+</script>
+{% endblock %}

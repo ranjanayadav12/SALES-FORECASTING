@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Goal Seek - Sales Forecasting{% endblock %}
+
+{% block content %}
+<div class="grid-2">
+    <!-- Form Side -->
+    <div class="glass-card animate-fade-in">
+        <h2 class="text-gradient"><i class="fa-solid fa-bullseye mr-2"></i> Sales Goal Seeker</h2>
+        <p class="text-muted mb-4">Enter your <strong>target sales revenue</strong> and <strong>product price</strong> — the system will calculate exactly how many units you need to sell to hit your goal, along with a profit/loss estimate.</p>
+
+        <form method="POST" action="{{ url_for('run_goal_seek') }}">
+
+            <!-- Target Sales -->
+            <div class="form-group mb-4">
+                <label class="form-label" for="target_sales">
+                    <i class="fa-solid fa-flag-checkered mr-1" style="color: var(--success);"></i>
+                    Target Sales Revenue (₹ Lakhs) *
+                </label>
+                <input type="number" step="0.01" min="0.01" id="target_sales" name="target_sales"
+                       class="form-control"
+                       value="{{ target_sales if target_sales else '' }}"
+                       placeholder="e.g. 100  (means ₹1,00,00,000)"
+                       required>
+                <small class="text-muted" style="font-size: 0.8rem; margin-top: 0.3rem; display:block;">Enter value in Lakhs. Example: 50 = ₹50,00,000</small>
+            </div>
+
+            <!-- Product Price -->
+            <div class="form-group mb-4">
+                <label class="form-label" for="product_price">
+                    <i class="fa-solid fa-tag mr-1" style="color: var(--primary);"></i>
+                    Product Price per Unit (₹) *
+                </label>
+                <input type="number" step="0.01" min="0.01" id="product_price" name="product_price"
+                       class="form-control"
+                       value="{{ product_price if product_price else '' }}"
+                       placeholder="e.g. 500  (price of one unit in ₹)"
+                       required>
+                <small class="text-muted" style="font-size: 0.8rem; margin-top: 0.3rem; display:block;">Enter price per unit in Indian Rupees (₹)</small>
+            </div>
+
+            <!-- Cost per Unit (optional) -->
+            <div class="form-group mb-4">
+                <label class="form-label" for="cost_per_unit">
+                    <i class="fa-solid fa-boxes-stacked mr-1" style="color: var(--text-muted);"></i>
+                    Cost per Unit (₹) <span style="color: var(--text-muted); font-weight: 400;">(Optional — for Profit/Loss)</span>
+                </label>
+                <input type="number" step="0.01" min="0" id="cost_per_unit" name="cost_per_unit"
+                       class="form-control"
+                       value="{{ cost_per_unit if cost_per_unit else '' }}"
+                       placeholder="e.g. 300  (what it costs you to produce/buy one unit)">
+                <small class="text-muted" style="font-size: 0.8rem; margin-top: 0.3rem; display:block;">Leave blank if you only want quantity estimation</small>
+            </div>
+
+            <!-- Live Preview -->
+            <div id="live-preview" style="display:none; background: rgba(139,92,246,0.07); border: 1px solid rgba(139,92,246,0.25); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1.5rem;">
+                <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">Live Estimate</div>
+                <div style="font-size: 1.4rem; font-weight: 700; color: var(--primary);" id="live-qty">—</div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;" id="live-label">units required</div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">
+                <i class="fa-solid fa-calculator mr-2"></i> Calculate Required Quantity
+            </button>
+        </form>
+    </div>
+
+    <!-- Results Side -->
+    <div class="glass-card animate-fade-in delay-1" style="display: flex; flex-direction: column;">
+        <h2 class="mb-4">Result</h2>
+
+        {% if show_result %}
+            <!-- Main Answer -->
+            <div style="text-align: center; margin-bottom: 2rem; padding: 2rem; background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.25); border-radius: var(--radius-md);">
+                <div class="text-muted" style="font-size: 0.9rem; margin-bottom: 0.5rem;">To reach your target of</div>
+                <div style="font-size: 1.75rem; font-weight: 700; color: var(--success); margin-bottom: 0.25rem;">₹ {{ "%.2f"|format(target_sales) }} Lakhs</div>
+                <div class="text-muted" style="font-size: 0.9rem; margin-bottom: 1.5rem;">at ₹{{ "%.2f"|format(product_price) }} per unit, you need to sell:</div>
+
+                <div class="text-gradient" style="font-size: 3.5rem; font-weight: 800; letter-spacing: -2px; line-height: 1;">
+                    {{ "{:,}".format(required_qty) }}
+                </div>
+                <div style="font-size: 1.1rem; color: var(--text-muted); margin-top: 0.25rem;">units</div>
+            </div>
+
+            <!-- Breakdown -->
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.25rem;">
+                <h5 style="color: var(--primary); margin-bottom: 1rem;"><i class="fa-solid fa-list-check mr-2"></i>Breakdown</h5>
+
+                <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <span class="text-muted">Target Revenue</span>
+                    <span style="font-weight: 600;">₹ {{ "%.2f"|format(target_sales) }} Lakhs</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <span class="text-muted">Price per Unit</span>
+                    <span style="font-weight: 600;">₹ {{ "%.2f"|format(product_price) }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <span class="text-muted">Units Required</span>
+                    <span style="font-weight: 700; color: var(--primary);">{{ "{:,}".format(required_qty) }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <span class="text-muted">Daily Units (30-day month)</span>
+                    <span style="font-weight: 600;">{{ "{:,}".format(daily_units) }} / day</span>
+                </div>
+
+                {% if profit_per_unit is not none %}
+                <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <span class="text-muted">Cost per Unit</span>
+                    <span style="font-weight: 600;">₹ {{ "%.2f"|format(cost_per_unit) }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <span class="text-muted">Profit per Unit</span>
+                    <span style="font-weight: 600;"
+                          class="{% if profit_per_unit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        ₹ {{ "%.2f"|format(profit_per_unit) }}
+                    </span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 0.75rem 0; margin-top: 0.25rem;">
+                    <span class="text-muted" style="font-weight: 600;">Total Estimated Profit/Loss</span>
+                    <span style="font-weight: 700; font-size: 1.1rem;"
+                          class="{% if total_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {% if total_profit >= 0 %}+{% endif %}₹ {{ "%.2f"|format(total_profit) }} Lakhs
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+
+            <div style="text-align: center; padding: 0.75rem; background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); border-radius: var(--radius-md); font-size: 0.85rem; color: var(--success);">
+                <i class="fa-solid fa-lightbulb mr-1"></i> {{ message }}
+            </div>
+
+        {% elif error %}
+            <div style="display:flex; align-items:center; gap:0.75rem; background: rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.3); border-radius:var(--radius-md); padding:1rem; margin-top:auto; margin-bottom:auto;">
+                <i class="fa-solid fa-circle-exclamation" style="color:#ef4444; font-size:1.25rem;"></i>
+                <span>{{ error }}</span>
+            </div>
+        {% else %}
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); opacity: 0.6; text-align: center;">
+                <i class="fa-solid fa-bullseye" style="font-size: 4rem; margin-bottom: 1.5rem;"></i>
+                <p>Enter your <strong>target revenue</strong> and <strong>product price</strong> on the left.<br>We'll tell you exactly how many units to sell.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Live preview calculation
+    const targetInput = document.getElementById('target_sales');
+    const priceInput  = document.getElementById('product_price');
+    const preview     = document.getElementById('live-preview');
+    const liveQty     = document.getElementById('live-qty');
+    const liveLabel   = document.getElementById('live-label');
+
+    function updatePreview() {
+        const target = parseFloat(targetInput.value);
+        const price  = parseFloat(priceInput.value);
+        if (target > 0 && price > 0) {
+            const targetRupees = target * 100000; // Convert Lakhs to Rupees
+            const qty = Math.ceil(targetRupees / price);
+            liveQty.textContent = qty.toLocaleString('en-IN');
+            liveLabel.textContent = `units needed (₹${price.toLocaleString('en-IN')} × ${qty.toLocaleString('en-IN')} = ₹${(qty * price).toLocaleString('en-IN')})`;
+            preview.style.display = 'block';
+        } else {
+            preview.style.display = 'none';
+        }
+    }
+
+    targetInput.addEventListener('input', updatePreview);
+    priceInput.addEventListener('input', updatePreview);
+</script>
+{% endblock %}

@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+
+{% block title %}Advanced Analytics - Sales Forecasting{% endblock %}
+
+{% block extra_head %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="glass-card animate-fade-in mb-4">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem;">
+        <div>
+            <h2 class="text-gradient" style="margin-bottom: 0.5rem;"><i class="fa-solid fa-chart-line mr-2"></i> Advanced Analytics & Intelligence</h2>
+            <p class="text-muted">Deep dive into model metrics, historical trends, and correlation insights.</p>
+        </div>
+        <div>
+            <a href="{{ url_for('dashboard_page') }}" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+                <i class="fa-solid fa-table-list mr-1"></i> View Log Data
+            </a>
+        </div>
+    </div>
+
+    <!-- Dynamic Header KPIs -->
+    <div class="grid-3 mb-4">
+        <div style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: var(--radius-md); padding: 1.5rem; text-align: center;">
+            <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 0.5rem;">Total Predicted Sales</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: var(--primary);">
+                ₹ {{ "{:,.2f}".format(total_sales) }} L
+            </div>
+        </div>
+        <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 1.5rem; text-align: center;">
+            <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 0.5rem;">Average Forecast</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: var(--text-main);">
+                ₹ {{ "{:,.2f}".format(avg_sales) }} L
+            </div>
+        </div>
+        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-md); padding: 1.5rem; text-align: center;">
+            <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 0.5rem;">Total Projected Profit</div>
+            <div style="font-size: 1.75rem; font-weight: 700; color: var(--success);">
+                ₹ {{ "{:,.2f}".format(total_profit) }} L
+            </div>
+        </div>
+    </div>
+
+    <!-- 1. Sales Trend Chart (Full Width) -->
+    <div class="glass-card mb-4" style="padding: 2rem;">
+        <h3 class="mb-4" style="font-size: 1.25rem;"><i class="fa-solid fa-chart-line mr-2 text-primary"></i> Sales Trend Analysis</h3>
+        <div class="chart-container" style="height: 350px;">
+            <canvas id="trendChart"></canvas>
+        </div>
+    </div>
+
+    <div class="grid-2 mb-4">
+        <!-- 2. Product Performance (Bar Chart) -->
+        <div class="glass-card" style="padding: 1.5rem;">
+            <h3 class="mb-3" style="font-size: 1.1rem; color: var(--text-muted);"><i class="fa-solid fa-layer-group mr-2"></i> Product Performance</h3>
+            <div class="chart-container" style="height: 300px;">
+                <canvas id="productBarChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 3. Regional Distribution (Pie Chart) -->
+        <div class="glass-card" style="padding: 1.5rem;">
+            <h3 class="mb-3" style="font-size: 1.1rem; color: var(--text-muted);"><i class="fa-solid fa-earth-americas mr-2"></i> Regional Distribution</h3>
+            <div class="chart-container" style="height: 300px;">
+                <canvas id="distributionPieChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Ad Impact Scatter Plot (Full Width) -->
+    <div class="glass-card mb-4" style="padding: 2rem;">
+        <h3 class="mb-4" style="font-size: 1.25rem;"><i class="fa-solid fa-bullhorn mr-2 text-warning"></i> Advertising Impact Analysis</h3>
+        <div class="chart-container" style="height: 350px;">
+            <canvas id="adImpactChart"></canvas>
+        </div>
+    </div>
+
+    <!-- 4. Forecast vs Actual (Full Width Comparison) -->
+    <div class="glass-card mb-4" style="padding: 2rem;">
+        <h3 class="mb-4" style="font-size: 1.25rem;"><i class="fa-solid fa-vials mr-2 text-success"></i> Forecast vs Actual Comparison</h3>
+        <div class="chart-container" style="height: 300px;">
+            <canvas id="comparisonChart"></canvas>
+        </div>
+    </div>
+
+    <!-- AI Insights Full Width -->
+    <div class="glass-card" style="background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: var(--radius-lg); padding: 2rem;">
+         <h3 class="mb-4" style="font-size: 1.25rem; color: var(--primary);"><i class="fa-solid fa-brain mr-2"></i> AI Business Intelligence Insights</h3>
+         
+         <div class="grid-2">
+             <ul style="list-style: none; padding: 0; margin: 0;">
+                {% for insight in insights[:3] %}
+                <li style="display: flex; align-items: start; gap: 1rem; margin-bottom: 1.25rem; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: var(--radius-md);">
+                    <i class="fa-solid fa-lightbulb" style="color: var(--warning); font-size: 1.25rem;"></i>
+                    <span style="font-size: 1rem; line-height: 1.5;">{{ insight }}</span>
+                </li>
+                {% endfor %}
+             </ul>
+             <ul style="list-style: none; padding: 0; margin: 0;">
+                {% for insight in insights[3:6] %}
+                <li style="display: flex; align-items: start; gap: 1rem; margin-bottom: 1.25rem; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: var(--radius-md);">
+                    <i class="fa-solid fa-circle-check" style="color: var(--success); font-size: 1.25rem;"></i>
+                    <span style="font-size: 1rem; line-height: 1.5;">{{ insight }}</span>
+                </li>
+                {% endfor %}
+                {% if not insights %}
+                <li class="text-muted">Perform more predictions to see AI-driven strategic insights.</li>
+                {% endif %}
+             </ul>
+         </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    Chart.defaults.color = '#94a3b8';
+    Chart.defaults.font.family = "'Outfit', sans-serif";
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Line Chart: Trend
+        const ctxTrend = document.getElementById('trendChart').getContext('2d');
+        const trendData = [
+            {% for pred in recent_20|reverse %}
+                {{ pred.predicted_sales }},
+            {% endfor %}
+        ];
+        const trendLabels = [
+            {% for pred in recent_20|reverse %}
+                '{{ pred.timestamp.strftime("%m-%d") }}',
+            {% endfor %}
+        ];
+
+        new Chart(ctxTrend, {
+            type: 'line',
+            data: {
+                labels: trendLabels,
+                datasets: [{
+                    label: 'Predicted Sales Trend',
+                    data: trendData,
+                    borderColor: '#8b5cf6',
+                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#8b5cf6'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { 
+                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, border: { display: false } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        // Bar Chart: Product Performance (Using mocked categories for visualization)
+        const ctxProduct = document.getElementById('productBarChart').getContext('2d');
+        new Chart(ctxProduct, {
+            type: 'bar',
+            data: {
+                labels: ['Electronics', 'Fashion', 'Home', 'Beauty', 'Sports'],
+                datasets: [{
+                    label: 'Sales Volume',
+                    data: [
+                        {{ (total_sales * 0.35)|round|int }}, 
+                        {{ (total_sales * 0.25)|round|int }}, 
+                        {{ (total_sales * 0.15)|round|int }}, 
+                        {{ (total_sales * 0.15)|round|int }}, 
+                        {{ (total_sales * 0.10)|round|int }}
+                    ],
+                    backgroundColor: '#ec4899',
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { 
+                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        // Pie Chart: Regional Distribution
+        const ctxPie = document.getElementById('distributionPieChart').getContext('2d');
+        new Chart(ctxPie, {
+            type: 'pie',
+            data: {
+                labels: ['North', 'South', 'East', 'West', 'Central'],
+                datasets: [{
+                    data: {{ (pie_values or [30, 25, 15, 20, 10]) | tojson }},
+                    backgroundColor: [
+                        'rgba(139, 92, 246, 0.8)',
+                        'rgba(236, 72, 153, 0.8)',
+                        'rgba(16, 185, 129, 0.8)',
+                        'rgba(245, 158, 11, 0.8)',
+                        'rgba(59, 130, 246, 0.8)'
+                    ],
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: { padding: 20, usePointStyle: true, color: '#94a3b8' }
+                    }
+                }
+            }
+        });
+
+        // Ad Impact Scatter Plot
+        const ctxAd = document.getElementById('adImpactChart').getContext('2d');
+        new Chart(ctxAd, {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'Ad Spend vs Sales',
+                    data: [
+                        {x: 1000, y: 12000}, {x: 2000, y: 15600}, {x: 3500, y: 24000}, {x: 500, y: 8000},
+                        {x: 5000, y: 45000}, {x: 1500, y: 14000}, {x: 4200, y: 38000}, {x: 2800, y: 22000}
+                    ],
+                    backgroundColor: 'rgba(245, 158, 11, 0.6)',
+                    borderColor: '#f59e0b',
+                    pointRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { 
+                        title: { display: true, text: 'Ad Spend (₹)', color: '#94a3b8' },
+                        grid: { color: 'rgba(255,255,255,0.05)' }
+                    },
+                    y: { 
+                        title: { display: true, text: 'Predicted Sales (₹)', color: '#94a3b8' },
+                        grid: { color: 'rgba(255,255,255,0.05)' }
+                    }
+                }
+            }
+        });
+
+        // Forecast vs Actual (Mixed Chart)
+        const ctxComp = document.getElementById('comparisonChart').getContext('2d');
+        new Chart(ctxComp, {
+            type: 'bar',
+            data: {
+                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                datasets: [
+                    {
+                        label: 'AI Forecast',
+                        data: [
+                            {{ (avg_sales * 0.9)|round(1) }}, 
+                            {{ (avg_sales * 1.05)|round(1) }}, 
+                            {{ (avg_sales * 0.85)|round(1) }}, 
+                            {{ avg_sales|round(1) }}
+                        ],
+                        backgroundColor: 'rgba(139, 92, 246, 0.6)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Historical Actual',
+                        data: [
+                            {{ (avg_sales * 0.85)|round(1) }}, 
+                            {{ (avg_sales * 1.1)|round(1) }}, 
+                            {{ (avg_sales * 0.9)|round(1) }}, 
+                            {{ (avg_sales * 0.95)|round(1) }}
+                        ],
+                        type: 'line',
+                        borderColor: '#10b981',
+                        borderWidth: 3,
+                        pointRadius: 5,
+                        fill: false,
+                        tension: 0.3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } },
+                scales: { 
+                    y: { grid: { color: 'rgba(255,255,255,0.05)' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

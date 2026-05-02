@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Upload & Predict - Sales Forecasting{% endblock %}
+
+{% block content %}
+<div class="glass-card animate-fade-in mb-4">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem;">
+        <div>
+            <h2 class="text-gradient" style="margin-bottom: 0.5rem;"><i class="fa-solid fa-cloud-arrow-up mr-2"></i> Upload & Predict Next Month</h2>
+            <p class="text-muted">Upload your sales CSV or Excel file. The system will automatically read all rows and predict <strong>next month's sales</strong> and <strong>profit/loss</strong> for each record.</p>
+        </div>
+        <a href="{{ url_for('download_template') }}" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.9rem; white-space: nowrap;">
+            <i class="fa-solid fa-download mr-1"></i> Download Template
+        </a>
+    </div>
+
+    <!-- File Requirements Info -->
+    <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 1rem 1.5rem; margin-bottom: 2rem; display: flex; align-items: flex-start; gap: 1rem;">
+        <i class="fa-solid fa-circle-info" style="color: var(--primary); font-size: 1.1rem; margin-top: 0.1rem; flex-shrink: 0;"></i>
+        <div style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.7;">
+            <strong style="color: var(--text-main);">Expected column names (auto-detected):</strong>
+            <code style="background: rgba(139,92,246,0.15); padding: 0.1rem 0.4rem; border-radius: 4px; color: var(--primary);">rate</code> or <code style="background: rgba(139,92,246,0.15); padding: 0.1rem 0.4rem; border-radius: 4px; color: var(--primary);">growth_rate</code> •
+            <code style="background: rgba(139,92,246,0.15); padding: 0.1rem 0.4rem; border-radius: 4px; color: var(--primary);">sales_first_month</code> or <code style="background: rgba(139,92,246,0.15); padding: 0.1rem 0.4rem; border-radius: 4px; color: var(--primary);">m1</code> •
+            <code style="background: rgba(139,92,246,0.15); padding: 0.1rem 0.4rem; border-radius: 4px; color: var(--primary);">sales_second_month</code> or <code style="background: rgba(139,92,246,0.15); padding: 0.1rem 0.4rem; border-radius: 4px; color: var(--primary);">m2</code> •
+            optional: <code style="background: rgba(255,255,255,0.08); padding: 0.1rem 0.4rem; border-radius: 4px;">cost</code>, <code style="background: rgba(255,255,255,0.08); padding: 0.1rem 0.4rem; border-radius: 4px;">date</code>
+        </div>
+    </div>
+
+    <!-- Upload Form -->
+    <form id="uploadForm" method="POST" action="{{ url_for('process_file') }}" enctype="multipart/form-data">
+
+        <!-- Drop Zone -->
+        <div id="drop-zone"
+             style="border: 2px dashed rgba(255,255,255,0.2); padding: 3rem 2rem; border-radius: var(--radius-lg); text-align: center; cursor: pointer; transition: var(--transition-normal);"
+             onclick="document.getElementById('fileInput').click()">
+
+            <input type="file" name="file" id="fileInput" accept=".csv,.xlsx,.xls" required style="display:none;" onchange="onFileChosen(this)">
+
+            <div id="idle-state">
+                <i class="fa-solid fa-file-arrow-up" style="font-size: 3rem; color: var(--text-muted); margin-bottom: 1rem; display: block;"></i>
+                <div style="font-size: 1.05rem; color: var(--text-muted);">Click here or <strong>drag & drop</strong> your file</div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.4rem;">CSV, XLSX, or XLS supported</div>
+            </div>
+
+            <div id="file-chosen-state" style="display: none;">
+                <i class="fa-solid fa-file-csv" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 0.75rem; display: block;"></i>
+                <div id="chosen-file-name" style="font-size: 1.1rem; font-weight: 600; color: var(--primary);"></div>
+                <div id="chosen-file-size" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;"></div>
+                <div style="margin-top: 0.75rem; font-size: 0.85rem; color: var(--text-muted);">Click to change file</div>
+            </div>
+        </div>
+
+        <!-- Predict Button (hidden until file chosen) -->
+        <div id="predict-btn-wrapper" style="display: none; text-align: center; margin-top: 1.5rem;">
+            <div id="loading-spinner" style="display:none; margin-bottom: 1rem;">
+                <i class="fa-solid fa-spinner fa-spin mr-2" style="color:var(--primary);"></i>
+                <span style="color: var(--text-muted);">Analysing your file and predicting...</span>
+            </div>
+            <button type="submit" id="predict-btn" class="btn btn-primary" style="padding: 0.85rem 3rem; font-size: 1rem;" onclick="onSubmit()">
+                <i class="fa-solid fa-rocket mr-2"></i> Predict Next Month Sales
+            </button>
+        </div>
+
+    </form>
+</div>
+
+<!-- Error -->
+{% if error %}
+<div class="glass-card animate-fade-in mt-4" style="border: 1px solid rgba(239,68,68,0.4); background: rgba(239,68,68,0.08);">
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <i class="fa-solid fa-circle-xmark" style="color: #ef4444; font-size: 1.25rem; flex-shrink: 0;"></i>
+        <div>
+            <strong style="color: #ef4444;">Error</strong>
+            <p style="margin: 0.25rem 0 0; color: var(--text-muted); font-size: 0.9rem;">{{ error }}</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Results -->
+{% if success %}
+<div class="glass-card animate-fade-in mt-4">
+
+    <!-- Header -->
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <i class="fa-solid fa-circle-check" style="color: var(--success); font-size: 1.5rem;"></i>
+            <div>
+                <h3 style="margin: 0; color: var(--success);">Next Month Predictions Ready</h3>
+                <p style="margin: 0.2rem 0 0; color: var(--text-muted); font-size: 0.85rem;">File: <strong>{{ filename }}</strong> — {{ total }} row(s) processed</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid-3 mb-4">
+        <div style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); border-radius: var(--radius-md); padding: 1.25rem; text-align: center;">
+            <div class="text-muted" style="font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.4rem;">Rows Processed</div>
+            <div style="font-size: 2.2rem; font-weight: 800; color: var(--success);">{{ total }}</div>
+        </div>
+        <div style="background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.3); border-radius: var(--radius-md); padding: 1.25rem; text-align: center;">
+            <div class="text-muted" style="font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.4rem;">Avg Next Month Forecast</div>
+            <div style="font-size: 1.3rem; font-weight: 700; color: var(--primary);">{{ avg_pred }}</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-md); padding: 1.25rem; text-align: center;">
+            <div class="text-muted" style="font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.4rem;">Net Profit/Loss</div>
+            <div style="font-size: 1.1rem; font-weight: 600;">{{ net_profit_loss }}</div>
+        </div>
+    </div>
+
+    <!-- Results Table -->
+    <h4 class="mb-3" style="font-size: 1rem;"><i class="fa-solid fa-table mr-2" style="color: var(--primary);"></i> Row-by-Row Predictions</h4>
+    <div style="overflow-x: auto; border-radius: var(--radius-md); border: 1px solid var(--border-glass);">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.88rem;">
+            <thead>
+                <tr style="background: rgba(255,255,255,0.04);">
+                    <th style="padding: 0.75rem 1rem; text-align: left; color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.75rem;">#</th>
+                    {% if predictions and predictions[0].date != 'N/A' %}
+                    <th style="padding: 0.75rem 1rem; text-align: left; color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.75rem;">Date</th>
+                    {% endif %}
+                    <th style="padding: 0.75rem 1rem; text-align: left; color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.75rem;">Growth Rate</th>
+                    <th style="padding: 0.75rem 1rem; text-align: left; color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.75rem;">Month 1</th>
+                    <th style="padding: 0.75rem 1rem; text-align: left; color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.75rem;">Month 2</th>
+                    <th style="padding: 0.75rem 1rem; text-align: left; color: var(--primary); font-weight: 700; text-transform: uppercase; font-size: 0.75rem;">Next Month Forecast</th>
+                    {% if predictions and predictions[0].cost != '-' %}
+                    <th style="padding: 0.75rem 1rem; text-align: left; color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.75rem;">Cost</th>
+                    <th style="padding: 0.75rem 1rem; text-align: left; color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.75rem;">Profit/Loss</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in predictions %}
+                <tr style="border-top: 1px solid rgba(255,255,255,0.04); transition: background 0.15s;"
+                    onmouseover="this.style.background='rgba(255,255,255,0.03)'"
+                    onmouseout="this.style.background='transparent'">
+                    <td style="padding: 0.7rem 1rem; color: var(--text-muted);">{{ loop.index }}</td>
+                    {% if predictions[0].date != 'N/A' %}
+                    <td style="padding: 0.7rem 1rem;">{{ row.date }}</td>
+                    {% endif %}
+                    <td style="padding: 0.7rem 1rem;">{{ row.rate }}%</td>
+                    <td style="padding: 0.7rem 1rem;">{{ row.sales_first }}</td>
+                    <td style="padding: 0.7rem 1rem;">{{ row.sales_second }}</td>
+                    <td style="padding: 0.7rem 1rem; font-weight: 700; color: var(--primary);">{{ row.predicted_sales }}</td>
+                    {% if predictions[0].cost != '-' %}
+                    <td style="padding: 0.7rem 1rem;">{{ row.cost }}</td>
+                    <td style="padding: 0.7rem 1rem; font-weight: 600;"
+                        class="{% if row.profit_loss_status == 'Profit' %}text-success{% elif row.profit_loss_status == 'Loss' %}text-danger{% endif %}">
+                        {{ row.profit_loss }}
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if not predictions %}
+    <div style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+        <i class="fa-solid fa-inbox" style="font-size: 2rem; display: block; margin-bottom: 0.5rem;"></i>
+        No valid data rows were found in the uploaded file.
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function onFileChosen(input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        document.getElementById('idle-state').style.display = 'none';
+        document.getElementById('file-chosen-state').style.display = 'block';
+        document.getElementById('chosen-file-name').textContent = file.name;
+        document.getElementById('chosen-file-size').textContent = (file.size / 1024).toFixed(1) + ' KB';
+
+        const dz = document.getElementById('drop-zone');
+        dz.style.borderColor = 'var(--primary)';
+        dz.style.background  = 'rgba(139, 92, 246, 0.06)';
+
+        document.getElementById('predict-btn-wrapper').style.display = 'block';
+    }
+
+    function onSubmit() {
+        document.getElementById('predict-btn').disabled = true;
+        document.getElementById('loading-spinner').style.display = 'block';
+    }
+
+    // Drag & Drop
+    const dz = document.getElementById('drop-zone');
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.style.borderColor = 'var(--primary)'; dz.style.background = 'rgba(139,92,246,0.1)'; });
+    dz.addEventListener('dragleave', () => { dz.style.borderColor = 'rgba(255,255,255,0.2)'; dz.style.background = 'transparent'; });
+    dz.addEventListener('drop', e => {
+        e.preventDefault();
+        document.getElementById('fileInput').files = e.dataTransfer.files;
+        onFileChosen(document.getElementById('fileInput'));
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}Compare Models - Sales Forecasting{% endblock %}
+
+{% block content %}
+<div class="glass-card animate-fade-in mb-4">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem;">
+        <div>
+            <h2 class="text-gradient" style="margin-bottom: 0.5rem;"><i class="fa-solid fa-code-compare mr-2"></i> Model Comparison</h2>
+            <p class="text-muted">Compare how different machine learning algorithms interpret your historical data.</p>
+        </div>
+    </div>
+
+    <!-- Comparison Form -->
+    <div style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 1.5rem;">
+        <form method="POST" action="{{ url_for('compare') }}" class="grid-4" style="align-items: end;">
+            <div class="form-group mb-0">
+                <label class="form-label" for="rate">Growth Rate (%)</label>
+                <div style="position: relative;">
+                    <i class="fa-solid fa-arrow-trend-up" style="position: absolute; left: 1rem; top: 1rem; color: var(--text-muted);"></i>
+                    <input type="number" step="0.01" id="rate" name="rate" class="form-control" style="padding-left: 2.75rem;" value="{{ input_params.rate if input_params else '' }}" placeholder="15.5" required>
+                </div>
+            </div>
+            
+            <div class="form-group mb-0">
+                <label class="form-label" for="sales_first">Sales M1</label>
+                <div style="position: relative;">
+                    <i class="fa-solid fa-chart-bar" style="position: absolute; left: 1rem; top: 1rem; color: var(--text-muted);"></i>
+                    <input type="number" step="0.01" id="sales_first" name="sales_first" class="form-control" style="padding-left: 2.75rem;" value="{{ input_params.sales_first if input_params else '' }}" placeholder="50" required>
+                </div>
+            </div>
+            
+            <div class="form-group mb-0">
+                <label class="form-label" for="sales_second">Sales M2</label>
+                <div style="position: relative;">
+                    <i class="fa-solid fa-chart-line" style="position: absolute; left: 1rem; top: 1rem; color: var(--text-muted);"></i>
+                    <input type="number" step="0.01" id="sales_second" name="sales_second" class="form-control" style="padding-left: 2.75rem;" value="{{ input_params.sales_second if input_params else '' }}" placeholder="65" required>
+                </div>
+            </div>
+
+            <div class="form-group mb-0" style="display: flex; gap: 1rem;">
+                <div style="flex: 1;">
+                    <label class="form-label" for="sales_unit">Unit</label>
+                    <select id="sales_unit" name="sales_unit" class="form-control" style="padding: 0.875rem 1rem;">
+                        <option value="lakhs" selected>Lakhs</option>
+                        <option value="crores">Crores</option>
+                        <option value="raw">Raw</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="padding-left: 2rem; padding-right: 2rem;">
+                    Compare <i class="fa-solid fa-play ml-2"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    {% if warning %}
+        <div class="alert alert-warning mt-4 mb-0">
+            <i class="fa-solid fa-triangle-exclamation mr-2"></i> {{ warning }}
+        </div>
+    {% endif %}
+
+    {% if error %}
+        <div class="alert alert-danger mt-4 mb-0">
+            <i class="fa-solid fa-circle-xmark mr-2"></i> {{ error }}
+        </div>
+    {% endif %}
+</div>
+
+{% if show_results and results %}
+<div class="glass-card animate-fade-in delay-1">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <h3 class="mb-0">Algorithm Results</h3>
+        {% if generated_at %}
+            <span class="text-muted" style="font-size: 0.85rem;">Run time: {{ generated_at }}</span>
+        {% endif %}
+    </div>
+
+    <div class="grid-3 mb-4">
+        {% for result in results %}
+        {% set is_main = result.model == 'Gradient Boosting (Main)' %}
+        
+        <div style="background: {% if is_main %}rgba(139, 92, 246, 0.1){% else %}rgba(255, 255, 255, 0.03){% endif %}; 
+                    border: 1px solid {% if is_main %}rgba(139, 92, 246, 0.5){% else %}var(--border-glass){% endif %}; 
+                    border-radius: var(--radius-md); padding: 1.5rem; position: relative; overflow: hidden;
+                    transform: {% if is_main %}translateY(-5px){% else %}none{% endif %};
+                    box-shadow: {% if is_main %}0 10px 25px rgba(139, 92, 246, 0.2){% else %}none{% endif %};
+                    transition: all 0.3s ease;">
+            
+            {% if is_main %}
+                <div style="position: absolute; top: 0; right: 0; background: var(--accent-gradient); color: white; padding: 0.25rem 1rem; font-size: 0.75rem; font-weight: 600; border-bottom-left-radius: var(--radius-md);">
+                    <i class="fa-solid fa-star mr-1"></i> RECOMMENDED
+                </div>
+            {% endif %}
+
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+                <div style="width: 45px; height: 45px; border-radius: var(--radius-sm); 
+                            background: {% if is_main %}var(--accent-gradient){% else %}rgba(255, 255, 255, 0.1){% endif %}; 
+                            display: flex; align-items: center; justify-content: center; font-size: 1.25rem; 
+                            color: {% if is_main %}white{% else %}var(--text-muted){% endif %};">
+                    
+                    {% if 'Random Forest' in result.model %}
+                        <i class="fa-solid fa-tree"></i>
+                    {% elif 'Regression' in result.model %}
+                        <i class="fa-solid fa-chart-line"></i>
+                    {% elif 'Boost' in result.model %}
+                        <i class="fa-solid fa-bolt"></i>
+                    {% else %}
+                        <i class="fa-solid fa-microchip"></i>
+                    {% endif %}
+                </div>
+                <div>
+                    <h4 style="margin: 0; font-size: 1.1rem; color: {% if is_main %}var(--primary){% else %}var(--text-main){% endif %};">
+                        {{ result.model }}
+                    </h4>
+                </div>
+            </div>
+            
+            <div style="padding-top: 1rem; border-top: 1px solid var(--border-glass);">
+                <div class="text-muted" style="font-size: 0.85rem; margin-bottom: 0.25rem;">Forecast Output</div>
+                <div style="font-size: 1.75rem; font-weight: 700; color: {% if is_main %}var(--primary){% else %}var(--text-main){% endif %}; display: flex; align-items: baseline; gap: 0.5rem;">
+                    {{ result.prediction.split(' ')[0] }}
+                    <span style="font-size: 1rem; font-weight: 500; color: var(--text-muted);">{{ result.prediction.split(' ')[1] }}</span>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; padding: 0.75rem; background: rgba(0,0,0,0.2); border-radius: var(--radius-sm);">
+                <span class="text-muted" style="font-size: 0.8rem;"><i class="fa-solid fa-crosshairs mr-1"></i> CV Score</span>
+                <span style="font-weight: 600; font-size: 0.9rem; color: 
+                      {% if result.cv_score and result.cv_score != 'N/A' and result.cv_score|float > 0.9 %}var(--success)
+                      {% elif result.cv_score and result.cv_score != 'N/A' and result.cv_score|float > 0.7 %}var(--warning)
+                      {% else %}var(--text-muted){% endif %};">
+                    {{ result.cv_score or 'N/A' }}
+                </span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

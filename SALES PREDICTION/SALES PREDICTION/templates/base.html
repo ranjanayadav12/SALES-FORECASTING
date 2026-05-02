@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Forecasting</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    
+    <div class="app-container">
+        <!-- Top Navigation -->
+        {% if session.get('user_id') %}
+        <header class="top-nav animate-fade-in">
+            <div class="brand">
+                <i class="fa-solid fa-chart-pie"></i>
+                Sales Forecasting
+            </div>
+            
+            <nav>
+                <ul class="nav-links">
+                    <li>
+                        <a href="{{ url_for('home') }}" class="nav-link {% if request.endpoint == 'home' or request.endpoint == 'predict' %}active{% endif %}">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Predict
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('dashboard_page') }}" class="nav-link {% if request.endpoint == 'dashboard_page' %}active{% endif %}">
+                            <i class="fa-solid fa-chart-line"></i> Dashboard
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('custom_dashboard') }}" class="nav-link {% if request.endpoint == 'custom_dashboard' %}active{% endif %}">
+                            <i class="fa-solid fa-gauge-high"></i> Analytics
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('run_goal_seek') }}" class="nav-link {% if request.endpoint == 'run_goal_seek' %}active{% endif %}">
+                            <i class="fa-solid fa-bullseye"></i> Goal Seek
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('compare') }}" class="nav-link {% if request.endpoint == 'compare' %}active{% endif %}">
+                            <i class="fa-solid fa-scale-balanced"></i> Compare
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('run_scenario') }}" class="nav-link {% if request.endpoint == 'run_scenario' %}active{% endif %}">
+                            <i class="fa-solid fa-code-branch"></i> Scenario
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('simulator_page') }}" class="nav-link {% if request.endpoint == 'simulator_page' %}active{% endif %}">
+                            <i class="fa-solid fa-sliders"></i> Simulator
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('upload_page') }}" class="nav-link {% if request.endpoint == 'upload_page' or request.endpoint == 'process_file' %}active{% endif %}">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> Upload Data
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            
+            <div class="user-nav">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--accent-gradient); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.8rem;">
+                        {{ (session.get('username') or 'U')[0] | upper }}
+                    </div>
+                </div>
+                <a href="{{ url_for('logout') }}" title="Logout" style="color: var(--text-muted); transition: var(--transition-fast);">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                </a>
+            </div>
+        </header>
+        {% else %}
+        <header class="top-nav animate-fade-in">
+            <div class="brand">
+                <i class="fa-solid fa-chart-pie"></i>
+                Sales Forecasting
+            </div>
+            <div class="user-nav">
+                <a href="{{ url_for('login') }}" class="btn btn-primary btn-sm" style="background: var(--accent-gradient); border: none; padding: 0.6rem 1.5rem;">
+                    <i class="fa-solid fa-right-to-bracket"></i> Login / Access
+                </a>
+                <a href="{{ url_for('register') }}" class="btn btn-primary btn-sm">
+                    Get Started
+                </a>
+            </div>
+        </header>
+        {% endif %}
+        
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages mt-2 mb-4 animate-fade-in">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+            
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

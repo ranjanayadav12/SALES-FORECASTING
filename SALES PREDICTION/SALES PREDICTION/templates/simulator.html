@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+
+{% block title %}Interactive Simulator - Sales Forecasting{% endblock %}
+
+{% block extra_head %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    /* Custom Slider Styling */
+    .slider-container {
+        width: 100%;
+        padding: 1rem 0;
+    }
+    
+    .slider {
+        -webkit-appearance: none;
+        width: 100%;
+        height: 6px;
+        border-radius: 3px;
+        background: rgba(255, 255, 255, 0.1);
+        outline: none;
+        opacity: 0.8;
+        transition: opacity .2s;
+    }
+
+    .slider:hover {
+        opacity: 1;
+    }
+
+    .slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--primary);
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+        transition: transform 0.1s;
+    }
+    
+    .slider::-webkit-slider-thumb:hover {
+        transform: scale(1.2);
+    }
+
+    .slider::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--primary);
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+    }
+    
+    /* Variable specific slider colors */
+    #sim_rate::-webkit-slider-thumb, #sim_rate::-moz-range-thumb {
+        background: var(--primary);
+        box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+    }
+    
+    #sim_m1::-webkit-slider-thumb, #sim_m1::-moz-range-thumb {
+        background: var(--secondary);
+        box-shadow: 0 0 10px rgba(236, 72, 153, 0.5);
+    }
+    
+    #sim_m2::-webkit-slider-thumb, #sim_m2::-moz-range-thumb {
+        background: var(--success);
+        box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="glass-card animate-fade-in mb-4">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem;">
+        <div>
+            <h2 class="text-gradient" style="margin-bottom: 0.5rem;"><i class="fa-solid fa-sliders mr-2"></i> Real-Time Simulator</h2>
+            <p class="text-muted">Interactively adjust variables to see immediate impact on the AI forecast.</p>
+        </div>
+        <div>
+            <span style="background: rgba(236, 72, 153, 0.2); color: var(--secondary); padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.9rem; font-weight: 500;">
+                <i class="fa-solid fa-bolt mr-1"></i> Live Feedback
+            </span>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <!-- Controls Side -->
+        <div style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-glass); border-radius: var(--radius-lg); padding: 2rem;">
+            <h3 class="mb-4" style="color: var(--text-main); font-size: 1.1rem; border-bottom: 1px solid var(--border-glass); padding-bottom: 0.5rem;">Adjust Input Features</h3>
+            
+            <form id="simulatorForm">
+                <!-- Group 1: Rate -->
+                <div class="form-group mb-4">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 0.5rem;">
+                        <label class="form-label mb-0" style="color: var(--primary);">Growth Rate (%)</label>
+                        <span id="rateValue" style="font-size: 1.2rem; font-weight: 600; color: var(--primary);">25</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" class="slider" id="sim_rate" name="rate" min="0" max="100" value="25" step="1">
+                    </div>
+                </div>
+                
+                <!-- Group 2: Month 1 -->
+                <div class="form-group mb-4">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 0.5rem;">
+                        <label class="form-label mb-0" style="color: var(--secondary);">Month 1 Sales</label>
+                        <span id="m1Value" style="font-size: 1.2rem; font-weight: 600; color: var(--secondary);">50</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" class="slider" id="sim_m1" name="sales_first" min="10" max="500" value="50" step="5">
+                    </div>
+                </div>
+                
+                <!-- Group 3: Month 2 -->
+                <div class="form-group mb-4">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 0.5rem;">
+                        <label class="form-label mb-0" style="color: var(--success);">Month 2 Sales</label>
+                        <span id="m2Value" style="font-size: 1.2rem; font-weight: 600; color: var(--success);">80</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" class="slider" id="sim_m2" name="sales_second" min="10" max="500" value="80" step="5">
+                    </div>
+                </div>
+                
+                <input type="hidden" name="sales_unit" value="lakhs">
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2rem;">
+                    <button type="button" id="resetBtn" class="btn btn-outline btn-sm">Reset Defaults</button>
+                    <div id="simLoader" style="display: none; color: var(--primary);"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Computing...</div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Visualization Side -->
+        <div style="display: flex; flex-direction: column;">
+            
+            <!-- Result Card -->
+            <div style="background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: var(--radius-lg); padding: 2rem; text-align: center; margin-bottom: 1.5rem; position: relative;">
+                <div class="text-muted" style="font-size: 0.9rem; margin-bottom: 0.5rem;">Dynamically Predicted Output (Month 3)</div>
+                
+                <div id="simResult" class="text-gradient" style="font-size: 3.5rem; font-weight: 800; letter-spacing: -1px; display: flex; justify-content: center; align-items: center; gap: 0.5rem;">
+                    --
+                </div>
+                
+                <div id="warningBadge" style="display: none; position: absolute; top: 1rem; right: 1rem; background: rgba(245, 158, 11, 0.2); color: var(--warning); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; border: 1px solid rgba(245, 158, 11, 0.3);">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i> Adjusted
+                </div>
+            </div>
+            
+            <!-- Chart Container -->
+            <div style="flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border-glass); border-radius: var(--radius-lg); padding: 1.5rem; min-height: 250px;">
+                <h3 style="font-size: 1rem; color: var(--text-muted); margin-bottom: 1rem;">Trajectory Visualization</h3>
+                <div class="chart-container" style="height: 200px;">
+                    <canvas id="simChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const rateSlider = document.getElementById('sim_rate');
+        const m1Slider = document.getElementById('sim_m1');
+        const m2Slider = document.getElementById('sim_m2');
+        
+        const rateValue = document.getElementById('rateValue');
+        const m1Value = document.getElementById('m1Value');
+        const m2Value = document.getElementById('m2Value');
+        
+        const resultDisplay = document.getElementById('simResult');
+        const simLoader = document.getElementById('simLoader');
+        const warningBadge = document.getElementById('warningBadge');
+        
+        const resetBtn = document.getElementById('resetBtn');
+
+        // Initialize Chart
+        const ctx = document.getElementById('simChart').getContext('2d');
+        let gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, 'rgba(139, 92, 246, 0.5)');
+        gradient.addColorStop(1, 'rgba(139, 92, 246, 0.0)');
+
+        let simChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Month 1', 'Month 2', 'Forecast (M3)'],
+                datasets: [{
+                    label: 'Sales Trajectory',
+                    data: [50, 80, null],
+                    borderColor: '#8b5cf6',
+                    backgroundColor: gradient,
+                    borderWidth: 3,
+                    pointBackgroundColor: ['#ec4899', '#10b981', '#8b5cf6'],
+                    pointBorderColor: '#fff',
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 17, 26, 0.9)',
+                        titleColor: '#fff',
+                        bodyColor: '#e2e8f0',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1,
+                    }
+                },
+                scales: {
+                    y: {
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        beginAtZero: true
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+
+        // Debounce function to limit API calls
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        const fetchPrediction = debounce(async () => {
+            simLoader.style.display = 'block';
+            const formData = new FormData(document.getElementById('simulatorForm'));
+            
+            try {
+                // Determine base URL dynamically or use relative path
+                const response = await fetch("{{ url_for('ajax_predict') }}", {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        resultDisplay.textContent = 'None';
+                        warningBadge.style.display = 'block';
+                        warningBadge.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i> Data Input Error`;
+                    } else {
+                        // Extract numeric value if format is like "XX.XX Lakhs"
+                        let numericResult;
+                        if(data.prediction_display && data.prediction_display.includes("Lakhs")) {
+                             numericResult = parseFloat(data.prediction_display.replace(" Lakhs", ""));
+                        } else {
+                             numericResult = data.raw_prediction;
+                        }
+                        
+                        // Update UI
+                        resultDisplay.textContent = numericResult.toFixed(2);
+                        
+                        // Update Warning Badge
+                        if(data.warning) {
+                            warningBadge.style.display = 'block';
+                            warningBadge.title = data.warning;
+                        } else {
+                            warningBadge.style.display = 'none';
+                        }
+                        
+                        // Update Chart
+                        simChart.data.datasets[0].data = [
+                            parseFloat(m1Slider.value), 
+                            parseFloat(m2Slider.value), 
+                            numericResult
+                        ];
+                        simChart.update();
+                    }
+                } else {
+                    resultDisplay.textContent = '--';
+                }
+            } catch (err) {
+                console.error('Simulation Error:', err);
+                resultDisplay.textContent = 'Error';
+            } finally {
+                simLoader.style.display = 'none';
+            }
+        }, 150); // 150ms debounce
+
+        // Event Listeners for Sliders
+        const sliders = [rateSlider, m1Slider, m2Slider];
+        const valueDisplays = [rateValue, m1Value, m2Value];
+
+        sliders.forEach((slider, index) => {
+            slider.addEventListener('input', (e) => {
+                valueDisplays[index].textContent = e.target.value;
+                fetchPrediction();
+            });
+        });
+
+        // Reset Button
+        resetBtn.addEventListener('click', () => {
+            rateSlider.value = 25;
+            m1Slider.value = 50;
+            m2Slider.value = 80;
+            
+            rateValue.textContent = "25";
+            m1Value.textContent = "50";
+            m2Value.textContent = "80";
+            
+            fetchPrediction();
+        });
+
+        // Initial fetch
+        fetchPrediction();
+    });
+</script>
+{% endblock %}
