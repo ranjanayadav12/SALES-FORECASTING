@@ -36,7 +36,7 @@ It helps businesses predict future sales based on historical data and provides i
 
 **Database:**
 
-* SQLite / SQL
+* postgre sql
 
 ---
 
@@ -108,7 +108,6 @@ http://127.0.0.1:5000/
 ## 🧠 Future Improvements
 
 * Add advanced models (XGBoost, LSTM)
-* Deploy on cloud (AWS / Render)
 * Real-time data integration
 * Improve UI/UX
 
